@@ -29,13 +29,6 @@ export default function LoginPage() {
       login(data.user, data.token);
       router.push("/dashboard");
     } catch (err: any) {
-      // If the email/phone verification is pending (status 403), redirect to the OTP page
-      if (err.response?.status === 403 && err.response?.data?.verified === false) {
-        const unverifiedEmail = err.response.data.email || form.email;
-        const unverifiedPhone = err.response.data.phone || "";
-        router.push(`/verify-otp?email=${encodeURIComponent(unverifiedEmail)}&phone=${encodeURIComponent(unverifiedPhone)}`);
-        return;
-      }
       setError(err.response?.data?.error || "Login failed. Please try again.");
     } finally {
       setLoading(false);

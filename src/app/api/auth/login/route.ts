@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { hashPassword, verifyPassword, signAccessToken, signRefreshToken, generateOTP, getOTPExpiry } from "@/lib/auth";
+import { hashPassword, verifyPassword, signAccessToken, signRefreshToken } from "@/lib/auth";
 import { z } from "zod";
 
 const loginSchema = z.object({
@@ -37,30 +37,55 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Invalid credentials" }, { status: 401 });
     }
 
-    // Generate a fresh OTP for login (2-Factor Authentication)
-    const { generateOTP, getOTPExpiry } = require("@/lib/auth");
-    const { sendSMSOTP } = require("@/lib/communication");
-    const newOtp = generateOTP();
-    const expiry = getOTPExpiry();
+    // Create session tokens
+    const payload = {
+      userId: user.id,
+      email: user.email,
+      roleId: user.roleId,
+      roleName: user.role.name,
+      companyId: user.companyId || undefined,
+    };
 
-    await prisma.user.update({
-      where: { id: user.id },
+    const accessToken = signAccessToken(payload);
+    const refreshToken = signRefreshToken(payload);
+
+    await prisma.activityLog.create({
       data: {
-        otp: newOtp,
-        otpExpiry: expiry
-      }
+        userId: user.id,
+        description: "User logged in",
+        module: "AUTH",
+      },
     });
 
-    if (user.phone) {
-      await sendSMSOTP(user.phone, newOtp);
-    }
+    const response = NextResponse.json({
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        phone: user.phone,
+        avatar: user.avatar,
+        roleId: user.roleId,
+        roleName: user.role.name,
+        companyId: user.companyId,
+      },
+      token: accessToken,
+    });
 
-    return NextResponse.json({
-      error: "Verification code sent. Please enter the OTP to login.",
-      verified: false,
-      email: user.email,
-      phone: user.phone
-    }, { status: 403 });
+    response.cookies.set("access_token", accessToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      maxAge: 24 * 60 * 60,
+    });
+
+    response.cookies.set("refresh_token", refreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      maxAge: 7 * 24 * 60 * 60,
+    });
+
+    return response;
   } catch (error) {
     console.error("Login error:", error);
     return NextResponse.json({ error: "Login failed" }, { status: 500 });

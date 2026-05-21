@@ -43,8 +43,8 @@ export default function RegisterPage() {
         password: form.password,
         companyName: form.companyName,
       });
-      // Redirect to OTP verification page instead of logging in directly
-      router.push(`/verify-otp?email=${encodeURIComponent(data.email || form.email)}&phone=${encodeURIComponent(data.phone || form.phone || "")}`);
+      login(data.user, data.token);
+      router.push("/dashboard");
     } catch (err: any) {
       setError(err.response?.data?.error || "Registration failed.");
       setStep(1);

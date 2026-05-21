@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { hashPassword, signAccessToken } from "@/lib/auth";
+import { hashPassword, signAccessToken, signRefreshToken } from "@/lib/auth";
 import { z } from "zod";
 
 const registerSchema = z.object({
@@ -50,13 +50,7 @@ export async function POST(req: NextRequest) {
       data: { name: data.companyName },
     });
 
-    // Generate OTP & Expiry
-    const { generateOTP, getOTPExpiry } = require("@/lib/auth");
-    const { sendEmailOTP, sendSMSOTP } = require("@/lib/communication");
-    const verificationOtp = generateOTP();
-    const expiry = getOTPExpiry();
-
-    // Create user
+    // Create user (verified by default)
     const hashedPassword = await hashPassword(data.password);
     const user = await prisma.user.create({
       data: {
@@ -66,8 +60,9 @@ export async function POST(req: NextRequest) {
         password: hashedPassword,
         roleId: adminRole.id,
         companyId: company.id,
-        otp: verificationOtp,
-        otpExpiry: expiry
+        emailVerified: true,
+        otp: null,
+        otpExpiry: null
       },
       include: { role: true },
     });
@@ -109,17 +104,55 @@ export async function POST(req: NextRequest) {
       await prisma.subscriptionPlan.createMany({ data: plans });
     } catch(e) {}
 
-    // Send the verification OTP only via SMS
-    if (user.phone) {
-      await sendSMSOTP(user.phone, verificationOtp);
-    }
-
-    return NextResponse.json({
-      verified: false,
+    // Create session tokens
+    const payload = {
+      userId: user.id,
       email: user.email,
-      phone: user.phone,
-      message: "Please verify your account using the 6-digit OTP code sent to your phone."
+      roleId: user.roleId,
+      roleName: user.role.name,
+      companyId: user.companyId || undefined,
+    };
+
+    const accessToken = signAccessToken(payload);
+    const refreshToken = signRefreshToken(payload);
+
+    await prisma.activityLog.create({
+      data: {
+        userId: user.id,
+        description: "User registered and logged in",
+        module: "AUTH",
+      },
+    });
+
+    const response = NextResponse.json({
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        phone: user.phone,
+        avatar: user.avatar,
+        roleId: user.roleId,
+        roleName: user.role.name,
+        companyId: user.companyId,
+      },
+      token: accessToken,
     }, { status: 201 });
+
+    response.cookies.set("access_token", accessToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      maxAge: 24 * 60 * 60,
+    });
+
+    response.cookies.set("refresh_token", refreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      maxAge: 7 * 24 * 60 * 60,
+    });
+
+    return response;
   } catch (error) {
     console.error("Register error:", error);
     return NextResponse.json({ error: "Registration failed" }, { status: 500 });
