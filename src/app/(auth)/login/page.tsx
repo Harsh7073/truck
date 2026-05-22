@@ -35,19 +35,8 @@ export default function LoginPage() {
     }
   };
 
-  const handleDemoLogin = async () => {
-    setForm({ email: "admin@truckbilty.com", password: "demo123456" });
-    setLoading(true);
-    try {
-      const { data } = await axios.post("/api/auth/login", { email: "admin@truckbilty.com", password: "demo123456" });
-      login(data.user, data.token);
-      router.push("/dashboard");
-    } catch {
-      // Demo user doesn't exist yet - redirect to register
-      router.push("/register?demo=true");
-    } finally {
-      setLoading(false);
-    }
+  const handleDemoLogin = () => {
+    router.push("/register");
   };
 
   return (
