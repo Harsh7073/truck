@@ -85,12 +85,12 @@ export default function ForgotPasswordPage() {
         className="relative w-full max-w-md"
       >
         {/* Logo */}
-        <div className="flex items-center justify-center gap-3 mb-8">
-          <div className="w-10 h-10 rounded-2xl flex-center" style={{ background: "linear-gradient(135deg, #3b82f6, #6366f1)" }}>
+        <Link href="/" className="flex items-center justify-center gap-3 mb-8 hover:opacity-90 transition-opacity cursor-pointer group">
+          <div className="w-10 h-10 rounded-2xl flex-center group-hover:scale-105 transition-transform duration-300" style={{ background: "linear-gradient(135deg, #3b82f6, #6366f1)" }}>
             <Truck className="w-5 h-5 text-white" />
           </div>
           <span className="font-bold text-white text-xl">TruckBilty</span>
-        </div>
+        </Link>
 
         <div className="glass-card p-8">
           {/* Progress / Step indicator */}

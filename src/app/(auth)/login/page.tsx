@@ -65,15 +65,15 @@ export default function LoginPage() {
 
         <div className="relative z-10 flex flex-col h-full">
           {/* Logo */}
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl flex-center" style={{ background: "linear-gradient(135deg, #3b82f6, #6366f1)" }}>
+          <Link href="/" className="flex items-center gap-3 hover:opacity-90 transition-opacity cursor-pointer group">
+            <div className="w-10 h-10 rounded-2xl flex-center group-hover:scale-105 transition-transform duration-300" style={{ background: "linear-gradient(135deg, #3b82f6, #6366f1)" }}>
               <Truck className="w-5 h-5 text-white" />
             </div>
             <div>
               <div className="font-bold text-white text-lg">TruckBilty</div>
               <div className="text-xs text-white/30">Enterprise TMS</div>
             </div>
-          </div>
+          </Link>
 
           {/* Main Content */}
           <div className="flex-1 flex flex-col justify-center">
@@ -142,12 +142,12 @@ export default function LoginPage() {
           className="w-full max-w-md"
         >
           {/* Mobile logo */}
-          <div className="lg:hidden flex items-center gap-3 mb-8">
-            <div className="w-9 h-9 rounded-xl flex-center" style={{ background: "linear-gradient(135deg, #3b82f6, #6366f1)" }}>
+          <Link href="/" className="lg:hidden flex items-center gap-3 mb-8 hover:opacity-90 transition-opacity cursor-pointer group">
+            <div className="w-9 h-9 rounded-xl flex-center group-hover:scale-105 transition-transform duration-300" style={{ background: "linear-gradient(135deg, #3b82f6, #6366f1)" }}>
               <Truck className="w-4 h-4 text-white" />
             </div>
             <span className="font-bold text-white text-lg">TruckBilty</span>
-          </div>
+          </Link>
 
           <div className="mb-8">
             <h2 className="text-2xl font-bold text-white">Welcome back</h2>
