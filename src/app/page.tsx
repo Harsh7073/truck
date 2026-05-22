@@ -4,14 +4,80 @@ import { useState } from "react";
 import Link from "next/link";
 import {
   Truck, Shield, Zap, Globe, FileText, CheckCircle, TrendingUp, Users,
-  Check, ArrowRight, Clock, Smartphone, Play, Building2, MapPin, Receipt
+  Check, ArrowRight, Clock, Smartphone, Play, Building2, MapPin, Receipt,
+  Search, Mail, Phone, Send, AlertCircle, Loader2, Building, Package, CheckCircle2, User
 } from "lucide-react";
-import { motion, Variants } from "framer-motion";
+import { motion, Variants, AnimatePresence } from "framer-motion";
 import Navbar from "@/components/landing/Navbar";
 import InteractiveShowcase from "@/components/landing/InteractiveShowcase";
 
 export default function HomePage() {
   const [isAnnual, setIsAnnual] = useState(false);
+
+  // Tracking State
+  const [lrNumber, setLrNumber] = useState("");
+  const [trackingData, setTrackingData] = useState<any>(null);
+  const [trackLoading, setTrackLoading] = useState(false);
+  const [trackError, setTrackError] = useState<string | null>(null);
+
+  // Inquiry State
+  const [inquiryForm, setInquiryForm] = useState({
+    name: "",
+    email: "",
+    phone: "",
+    company: "",
+    message: "",
+  });
+  const [inquiryLoading, setInquiryLoading] = useState(false);
+  const [inquirySuccess, setInquirySuccess] = useState(false);
+  const [inquiryError, setInquiryError] = useState<string | null>(null);
+
+  const handleTrackSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!lrNumber.trim()) return;
+
+    setTrackLoading(true);
+    setTrackError(null);
+    setTrackingData(null);
+
+    try {
+      const res = await fetch(`/api/public/track?lrNumber=${encodeURIComponent(lrNumber.trim())}`);
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to find Bilty / LR Number");
+      }
+      setTrackingData(data);
+    } catch (err: any) {
+      setTrackError(err.message || "An unexpected error occurred");
+    } finally {
+      setTrackLoading(false);
+    }
+  };
+
+  const handleInquirySubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setInquiryLoading(true);
+    setInquiryError(null);
+    setInquirySuccess(false);
+
+    try {
+      const res = await fetch("/api/public/inquiry", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(inquiryForm),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to submit inquiry");
+      }
+      setInquirySuccess(true);
+      setInquiryForm({ name: "", email: "", phone: "", company: "", message: "" });
+    } catch (err: any) {
+      setInquiryError(err.message || "Something went wrong. Please try again.");
+    } finally {
+      setInquiryLoading(false);
+    }
+  };
 
   const containerVariants: Variants = {
     hidden: { opacity: 0 },
@@ -218,6 +284,193 @@ export default function HomePage() {
                 </div>
               </motion.div>
             </motion.div>
+          </div>
+        </div>
+      </section>
+
+      {/* ── CONSIGNMENT TRACKING SECTION ── */}
+      <section id="tracking" className="py-16 md:py-24 border-t border-white/5 relative bg-dark-900/20">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center space-y-4 mb-10">
+            <span className="text-[10px] tracking-widest font-black uppercase text-brand-400 bg-brand-500/10 px-3 py-1 rounded-full border border-brand-500/20">
+              Live Database Lookup
+            </span>
+            <h2 className="text-3xl font-extrabold text-white">
+              Track Your <span className="gradient-text">LR / Bilty Status</span>
+            </h2>
+            <p className="text-white/50 text-sm max-w-lg mx-auto">
+              Enter your Lorry Receipt (LR) number to track vehicle location, consignment loading info, and proof of delivery in real-time.
+            </p>
+          </div>
+
+          {/* Tracking Search Box */}
+          <div className="glass-card p-6 md:p-8 rounded-2xl border border-white/10 shadow-2xl relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-64 h-64 bg-brand-500/5 rounded-full blur-[80px] pointer-events-none" />
+            <form onSubmit={handleTrackSubmit} className="flex flex-col sm:flex-row gap-3 relative z-10">
+              <div className="relative flex-1">
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white/40" />
+                <input
+                  type="text"
+                  placeholder="Enter LR / Bilty Number (e.g. LR-1001)"
+                  value={lrNumber}
+                  onChange={(e) => setLrNumber(e.target.value)}
+                  className="w-full pl-12 pr-4 py-3.5 bg-dark-950/60 border border-white/10 focus:border-brand-500 rounded-xl text-white placeholder-white/30 text-sm focus:outline-none transition-colors"
+                  required
+                />
+              </div>
+              <button
+                type="submit"
+                disabled={trackLoading}
+                className="btn-primary py-3.5 px-6 font-semibold flex items-center justify-center gap-2 text-sm sm:w-auto w-full disabled:opacity-75"
+              >
+                {trackLoading ? (
+                  <>
+                    <Loader2 className="w-4.5 h-4.5 animate-spin" />
+                    <span>Searching...</span>
+                  </>
+                ) : (
+                  <>
+                    <span>Track Consignment</span>
+                    <ArrowRight className="w-4.5 h-4.5" />
+                  </>
+                )}
+              </button>
+            </form>
+
+            {/* Tracking Results Area */}
+            <AnimatePresence mode="wait">
+              {trackError && (
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0 }}
+                  className="mt-6 p-4 rounded-xl border border-red-500/20 bg-red-500/5 text-red-300 text-xs flex items-center gap-3"
+                >
+                  <AlertCircle className="w-5 h-5 text-red-400 flex-shrink-0" />
+                  <div>
+                    <span className="font-semibold">Error:</span> {trackError}
+                  </div>
+                </motion.div>
+              )}
+
+              {trackingData && (
+                <motion.div
+                  initial={{ opacity: 0, y: 15 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0 }}
+                  className="mt-8 pt-6 border-t border-white/5 space-y-6"
+                >
+                  {/* Trip details grid */}
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-xs">
+                    <div className="bg-white/2 p-3.5 rounded-xl border border-white/5">
+                      <span className="text-white/40 block mb-0.5">LR Number</span>
+                      <span className="font-bold text-white font-mono">{trackingData.lrNumber}</span>
+                    </div>
+                    <div className="bg-white/2 p-3.5 rounded-xl border border-white/5">
+                      <span className="text-white/40 block mb-0.5">Booking Date</span>
+                      <span className="font-bold text-white">
+                        {new Date(trackingData.lrDate).toLocaleDateString("en-IN", {
+                          day: "2-digit",
+                          month: "short",
+                          year: "numeric",
+                        })}
+                      </span>
+                    </div>
+                    <div className="bg-white/2 p-3.5 rounded-xl border border-white/5">
+                      <span className="text-white/40 block mb-0.5">Vehicle Number</span>
+                      <span className="font-bold text-brand-400 font-mono">{trackingData.vehicleNumber}</span>
+                    </div>
+                    <div className="bg-white/2 p-3.5 rounded-xl border border-white/5">
+                      <span className="text-white/40 block mb-0.5">Carrier Agency</span>
+                      <span className="font-bold text-white truncate block">{trackingData.companyName}</span>
+                    </div>
+                  </div>
+
+                  {/* Route details */}
+                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-4 rounded-xl border border-white/5 bg-white/2 text-xs">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-8 h-8 rounded-lg bg-brand-500/10 border border-brand-500/20 flex-center">
+                        <MapPin className="w-4 h-4 text-brand-400" />
+                      </div>
+                      <div>
+                        <span className="text-white/40 block text-[10px]">Route Path</span>
+                        <span className="font-bold text-white text-sm">
+                          {trackingData.fromCity} → {trackingData.toCity}
+                          {trackingData.via && <span className="text-white/40 font-normal text-xs"> (via {trackingData.via})</span>}
+                        </span>
+                      </div>
+                    </div>
+                    {trackingData.goodsDescription && (
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-8 h-8 rounded-lg bg-purple-500/10 border border-purple-500/20 flex-center">
+                          <Package className="w-4 h-4 text-purple-400" />
+                        </div>
+                        <div>
+                          <span className="text-white/40 block text-[10px]">Consignment Load</span>
+                          <span className="font-bold text-white text-sm">
+                            {trackingData.goodsDescription} {trackingData.quantity && `(${trackingData.quantity} ${trackingData.unit || "Bale"})`}
+                          </span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Tracking Timeline Stepper */}
+                  <div className="space-y-4 pt-2">
+                    <h4 className="text-xs font-bold text-white uppercase tracking-wider">Consignment Progress</h4>
+                    <div className="relative">
+                      {/* Timeline bar line */}
+                      <div className="absolute left-6 top-4 bottom-4 w-0.5 bg-white/10" />
+
+                      {/* Steppers */}
+                      {[
+                        {
+                          title: "LR Booked & Document Generated",
+                          desc: `Consignment registered in ${trackingData.companyName} local office database.`,
+                          time: new Date(trackingData.lrDate).toLocaleTimeString("en-IN", { hour: '2-digit', minute: '2-digit' }),
+                          active: true,
+                        },
+                        {
+                          title: "In Transit",
+                          desc: `Consignment is loaded on truck ${trackingData.vehicleNumber} and is currently in transit.`,
+                          time: "Running",
+                          active: trackingData.status === "ACTIVE" || trackingData.status === "DELIVERED",
+                        },
+                        {
+                          title: "Consignment Delivered",
+                          desc: trackingData.deliveredAt 
+                            ? `Delivered and verified on ${new Date(trackingData.deliveredAt).toLocaleDateString("en-IN")}.`
+                            : "Awaiting delivery confirmation from receiving branch.",
+                          time: trackingData.deliveredAt 
+                            ? new Date(trackingData.deliveredAt).toLocaleTimeString("en-IN", { hour: '2-digit', minute: '2-digit' })
+                            : "Pending",
+                          active: trackingData.status === "DELIVERED" || !!trackingData.deliveredAt,
+                        },
+                      ].map((step, idx) => (
+                        <div key={idx} className="flex gap-4 relative pb-6 last:pb-0">
+                          {/* Stepper Dot */}
+                          <div className={`w-12 h-12 rounded-full border flex-center flex-shrink-0 z-10 transition-all ${
+                            step.active 
+                              ? "bg-brand-500/10 border-brand-500/40 text-brand-400" 
+                              : "bg-dark-900 border-white/5 text-white/30"
+                          }`}>
+                            <CheckCircle2 className="w-5 h-5" />
+                          </div>
+                          {/* Stepper details */}
+                          <div className="pt-2 flex-1">
+                            <div className="flex items-center justify-between text-xs gap-4">
+                              <h5 className={`font-bold ${step.active ? "text-white" : "text-white/40"}`}>{step.title}</h5>
+                              <span className="text-[10px] text-white/30 font-medium whitespace-nowrap">{step.time}</span>
+                            </div>
+                            <p className="text-[11px] text-white/40 mt-0.5 leading-relaxed">{step.desc}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
         </div>
       </section>
@@ -504,26 +757,167 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ── BOTTOM CALL TO ACTION (CTA) ── */}
-      <section className="py-20 border-t border-white/5 relative overflow-hidden bg-gradient-to-b from-transparent to-dark-900">
+      {/* ── BOTTOM CALL TO ACTION & INQUIRY FORM ── */}
+      <section className="py-20 md:py-28 border-t border-white/5 relative overflow-hidden bg-gradient-to-b from-transparent to-dark-900" id="contact">
         <div className="absolute inset-0 bg-[radial-gradient(#3b82f6_1px,transparent_1px)] [background-size:24px_24px] opacity-[0.02] pointer-events-none" />
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center space-y-6 relative z-10">
-          <h2 className="text-3xl sm:text-4xl lg:text-5xl font-black text-white leading-tight">
-            Stop Typing, Start <span className="gradient-text">Transporting</span>
-          </h2>
-          <p className="text-white/50 text-base max-w-xl mx-auto leading-relaxed">
-            Join thousands of transport managers who save up to 12 hours a week using TruckBilty for documentation and billing.
-          </p>
-          <div className="flex justify-center pt-2">
-            <Link
-              href="/register"
-              className="btn-primary py-4 px-8 text-base shadow-xl shadow-brand-500/25 hover:-translate-y-0.5 transition-all flex items-center gap-2"
-            >
-              <span>Launch Your Account</span>
-              <ArrowRight className="w-4.5 h-4.5" />
-            </Link>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+          <div className="grid lg:grid-cols-12 gap-12 items-center">
+            
+            {/* CTA Copy (Left side) */}
+            <div className="lg:col-span-5 space-y-6 text-center lg:text-left">
+              <h2 className="text-3xl sm:text-4xl lg:text-5xl font-black text-white leading-[1.1]">
+                Stop Typing,<br />
+                Start <span className="gradient-text">Transporting.</span>
+              </h2>
+              <p className="text-white/50 text-base max-w-lg mx-auto lg:mx-0 leading-relaxed">
+                Join thousands of transport managers who save hours every week using TruckBilty. Sign up for a free account or get in touch for custom enterprise needs.
+              </p>
+              
+              <div className="flex flex-col sm:flex-row items-center gap-4 justify-center lg:justify-start">
+                <Link
+                  href="/register"
+                  className="btn-primary py-3.5 px-8 text-sm shadow-xl shadow-brand-500/25 hover:-translate-y-0.5 transition-all flex items-center gap-2 w-full sm:w-auto justify-center"
+                >
+                  <span>Launch Free Trial</span>
+                  <ArrowRight className="w-4 h-4" />
+                </Link>
+                <a
+                  href="tel:+919680706799"
+                  className="btn-secondary py-3.5 px-8 text-sm flex items-center gap-2 w-full sm:w-auto justify-center hover:bg-white/5"
+                >
+                  <Phone className="w-4 h-4 text-brand-400" />
+                  <span>Call Support</span>
+                </a>
+              </div>
+              
+              <div className="pt-6 border-t border-white/5 flex flex-col sm:flex-row gap-4 items-center justify-center lg:justify-start text-xs text-white/40">
+                <div className="flex items-center gap-2">
+                  <CheckCircle className="w-4 h-4 text-green-400" />
+                  <span>7-Day Free Trial</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <CheckCircle className="w-4 h-4 text-green-400" />
+                  <span>No Credit Card Required</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Public CRM / Contact Form (Right side) */}
+            <div className="lg:col-span-7">
+              <div className="glass-card p-6 md:p-8 rounded-2xl border border-white/10 shadow-2xl relative">
+                <h3 className="text-lg font-bold text-white mb-2">Request a Call Back / Demo</h3>
+                <p className="text-xs text-white/40 mb-6">Have questions or want a walkthrough? Fill out this quick form and our transport specialists will connect with you.</p>
+                
+                <form onSubmit={handleInquirySubmit} className="space-y-4">
+                  <div className="grid sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-[10px] font-bold uppercase tracking-wider text-white/40 block mb-1">Your Name</label>
+                      <div className="relative">
+                        <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
+                        <input
+                          type="text"
+                          required
+                          placeholder="John Doe"
+                          value={inquiryForm.name}
+                          onChange={(e) => setInquiryForm({ ...inquiryForm, name: e.target.value })}
+                          className="w-full pl-9 pr-3 py-2.5 bg-dark-950/60 border border-white/10 focus:border-brand-500 rounded-xl text-xs text-white placeholder-white/20 focus:outline-none transition-colors"
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-bold uppercase tracking-wider text-white/40 block mb-1">Phone Number</label>
+                      <div className="relative">
+                        <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
+                        <input
+                          type="tel"
+                          required
+                          placeholder="e.g. 9876543210"
+                          value={inquiryForm.phone}
+                          onChange={(e) => setInquiryForm({ ...inquiryForm, phone: e.target.value })}
+                          className="w-full pl-9 pr-3 py-2.5 bg-dark-950/60 border border-white/10 focus:border-brand-500 rounded-xl text-xs text-white placeholder-white/20 focus:outline-none transition-colors"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="grid sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-[10px] font-bold uppercase tracking-wider text-white/40 block mb-1">Email Address</label>
+                      <div className="relative">
+                        <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
+                        <input
+                          type="email"
+                          required
+                          placeholder="john@company.com"
+                          value={inquiryForm.email}
+                          onChange={(e) => setInquiryForm({ ...inquiryForm, email: e.target.value })}
+                          className="w-full pl-9 pr-3 py-2.5 bg-dark-950/60 border border-white/10 focus:border-brand-500 rounded-xl text-xs text-white placeholder-white/20 focus:outline-none transition-colors"
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-bold uppercase tracking-wider text-white/40 block mb-1">Company Name</label>
+                      <div className="relative">
+                        <Building className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
+                        <input
+                          type="text"
+                          placeholder="e.g. Acme Logistics"
+                          value={inquiryForm.company}
+                          onChange={(e) => setInquiryForm({ ...inquiryForm, company: e.target.value })}
+                          className="w-full pl-9 pr-3 py-2.5 bg-dark-950/60 border border-white/10 focus:border-brand-500 rounded-xl text-xs text-white placeholder-white/20 focus:outline-none transition-colors"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] font-bold uppercase tracking-wider text-white/40 block mb-1">Your Message / Requirements</label>
+                    <textarea
+                      required
+                      rows={3}
+                      placeholder="Tell us about your fleet operations or key features you need..."
+                      value={inquiryForm.message}
+                      onChange={(e) => setInquiryForm({ ...inquiryForm, message: e.target.value })}
+                      className="w-full p-3 bg-dark-950/60 border border-white/10 focus:border-brand-500 rounded-xl text-xs text-white placeholder-white/20 focus:outline-none resize-none transition-colors"
+                    />
+                  </div>
+
+                  {inquiryError && (
+                    <div className="p-3.5 rounded-xl border border-red-500/20 bg-red-500/5 text-red-300 text-xs flex items-center gap-2.5">
+                      <AlertCircle className="w-4 h-4 text-red-400 flex-shrink-0" />
+                      <span>{inquiryError}</span>
+                    </div>
+                  )}
+
+                  {inquirySuccess && (
+                    <div className="p-3.5 rounded-xl border border-green-500/20 bg-green-500/5 text-green-300 text-xs flex items-center gap-2.5">
+                      <CheckCircle className="w-4 h-4 text-green-400 flex-shrink-0" />
+                      <span>Inquiry submitted! We'll call you shortly.</span>
+                    </div>
+                  )}
+
+                  <button
+                    type="submit"
+                    disabled={inquiryLoading}
+                    className="btn-primary w-full py-3 text-xs font-semibold flex items-center justify-center gap-2 disabled:opacity-75 cursor-pointer"
+                  >
+                    {inquiryLoading ? (
+                      <>
+                        <Loader2 className="w-4.5 h-4.5 animate-spin" />
+                        <span>Submitting Request...</span>
+                      </>
+                    ) : (
+                      <>
+                        <span>Submit Inquiry</span>
+                        <Send className="w-4.5 h-4.5" />
+                      </>
+                    )}
+                  </button>
+                </form>
+              </div>
+            </div>
+
           </div>
-          <p className="text-[11px] text-white/30 font-medium">No credit card required • Instant setup</p>
         </div>
       </section>
 
