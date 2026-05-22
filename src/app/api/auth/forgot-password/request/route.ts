@@ -75,6 +75,7 @@ export async function POST(req: NextRequest) {
     });
   } catch (error) {
     console.error("Forgot password request error:", error);
-    return NextResponse.json({ error: "Failed to send verification code" }, { status: 500 });
+    const errorMsg = error instanceof Error ? error.message : String(error);
+    return NextResponse.json({ error: `Failed to send verification code: ${errorMsg}` }, { status: 500 });
   }
 }
